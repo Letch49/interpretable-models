@@ -1,0 +1,80 @@
+name: Benchmarks (artifacts)
+
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: "Comma-separated cases (e.g. thresholds,noisy_highdim,imbalanced)"
+        required: false
+        default: "thresholds,noisy_highdim"
+      seeds:
+        description: "Comma-separated seeds (e.g. 0,1,2)"
+        required: false
+        default: "0,1,2"
+      eps:
+        description: "Allowed F1 drop vs teacher on val (e.g. 0.0)"
+        required: false
+        default: "0.0"
+      max_rules:
+        description: "Max rules after pruning"
+        required: false
+        default: "20"
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies (dev)
+        run: uv sync --extra dev
+
+      - name: Run suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="bench_artifacts_${{ github.run_id }}"
+          mkdir -p "$OUT"
+          IFS=',' read -ra CASES <<< "${{ inputs.cases }}"
+          for c in "${CASES[@]}"; do
+            echo "=== CASE: $c ==="
+            PYTHONPATH=. uv run python -m bench.run_suite \
+              --case "$c" \
+              --seeds "${{ inputs.seeds }}" \
+              --eps "${{ inputs.eps }}" \
+              --max_rules "${{ inputs.max_rules }}" \
+              --out "$OUT"
+          done
+
+      - name: (Optional) 2D visual
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="bench_artifacts_${{ github.run_id }}"
+          PYTHONPATH=. uv run python -m bench.visual_2d_xor || true
+          # if the script writes bench_2d_xor.png to repo root, move it into artifacts
+          if [ -f "bench_2d_xor.png" ]; then
+            mv bench_2d_xor.png "$OUT/"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-assets-${{ github.run_id }}
+          path: |
+            bench_artifacts_${{ github.run_id }}/
+          retention-days: 30
