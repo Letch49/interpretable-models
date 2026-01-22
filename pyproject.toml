@@ -26,7 +26,7 @@ where = ["src"]
 #                           Test Config
 # -------------------------------------------------------------------
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "pytest>=7",
   "pytest-cov",
@@ -34,6 +34,13 @@ dev = [
   "numpy",
   "scipy"
 ]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
 
 
 # -------------------------------------------------------------------
