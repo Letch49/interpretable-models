@@ -8,10 +8,7 @@ on:
         required: true
         default: "patch"
         type: choice
-        options:
-          - patch
-          - minor
-          - major
+        options: [patch, minor, major]
 
 permissions:
   contents: write
@@ -19,24 +16,26 @@ permissions:
 jobs:
   bump:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # нужно для тегов
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+    steps:
+      - uses: actions/checkout@v4
         with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: |
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
             pyproject.toml
 
-      - name: Install bump2version
-        run: |
-          python -m pip install --upgrade pip
-          pip install bump2version
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dev deps
+        run: uv sync --group dev
 
       - name: Configure git user
         run: |
@@ -44,8 +43,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version, commit and tag
-        run: |
-          bump2version ${{ inputs.part }}
+        run: uv run bump2version ${{ inputs.part }}
 
       - name: Push commit and tags
         run: |

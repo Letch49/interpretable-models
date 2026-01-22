@@ -282,7 +282,7 @@ class SimpleRuleFitClassifier(BaseEstimator, ClassifierMixin):
         # fallback
         return np.hstack([Xs, np.asarray(R)])
 
-    def _build_rule_matrix(self, X: np.ndarray, rules: list[_Rule]):
+    def _build_rule_matrix(self, X, rules, store_supports: bool = False):
         n = X.shape[0]
         m = len(rules)
         if m == 0:
@@ -311,7 +311,9 @@ class SimpleRuleFitClassifier(BaseEstimator, ClassifierMixin):
             supports[j] = len(idx) / max(1, n)
 
         # store supports from latest call (fit uses training X)
-        self.rule_supports_ = supports
+        supports = np.zeros(m, dtype=float)
+        if store_supports:
+            self.rule_supports_ = supports
 
         # We built CSC-like arrays but will create CSC and convert to CSR for speed in LR
         R_csc = sp.csc_matrix(
