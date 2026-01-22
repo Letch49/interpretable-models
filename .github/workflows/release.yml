@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   build:
@@ -50,7 +51,7 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build twine
 
       - name: Build package
         run: |
@@ -68,3 +69,12 @@ jobs:
         with:
           tag_name: ${{ steps.resolve.outputs.tag }}
           files: dist/*
+
+      - name: Publish to GitHub Packages (PyPI registry)
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m twine upload \
+            --repository-url "https://pypi.pkg.github.com/${{ github.repository_owner }}" \
+            dist/*
