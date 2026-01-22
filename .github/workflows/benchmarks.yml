@@ -41,7 +41,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install dependencies (dev)
-        run: uv sync --extra dev
+        run: uv sync --group dev
 
       - name: Run suite
         shell: bash
