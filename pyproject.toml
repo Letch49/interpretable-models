@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rulefit-lite"
-version = "0.1.1"
+version = "0.1.2"
 description = "Lightweight interpretable RuleFit-style classifier"
 authors = [{name = "Your Name"}]
 license = {text = "MIT"}
