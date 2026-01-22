@@ -1,0 +1,53 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+    inputs:
+      part:
+        description: "Which part to bump: patch, minor, major"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # нужно для тегов
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install bump2version
+        run: |
+          python -m pip install --upgrade pip
+          pip install bump2version
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version, commit and tag
+        run: |
+          bump2version ${{ inputs.part }}
+
+      - name: Push commit and tags
+        run: |
+          git push
+          git push --tags

@@ -1,0 +1,123 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rulefit-lite"
+version = "0.1.0"
+description = "Lightweight interpretable RuleFit-style classifier"
+authors = [{name = "Your Name"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=2.0.2",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# -------------------------------------------------------------------
+#                           RUFF CONFIG
+# -------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+indent-width = 4
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    "__pycache__",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    ".pyc",
+    ".dockerignore",
+    "Dockerfile",
+    ".yaml",
+    ".yml",
+    "manage.py",
+    "ansible",
+    "make_validation",
+    "logs",
+    ".python-version"
+]
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    "I", # isort — сортировка импортов
+    "Q", # flake8-quotes — проверка кавычек
+    "E", # pycodestyle — базовые ошибки стиля
+    "W", # pycodestyle — предупреждения
+    "F", # pyflakes — логические ошибки, необъявленные переменные
+    "UP", # pyupgrade — обновление синтаксиса до современного Python
+    "C", # McCabe complexity — проверка сложности кода
+    "B", # flake8-bugbear — потенциальные баги, опасные конструкции
+    "S", # flake8-bandit — базовая статическая безопасность
+    "ISC", # flake8-implicit-str-concat — неявная конкатенация строк
+    "ASYNC", # ruff-async — проверка правильного использования async/await
+    "T20", # flake8-print — запрет print() в продакшене
+    "ANN", # flake8-annotations — аннотации типов обязательные
+    "TCH", # flake8-type-checking — перенос тяжёлых импортов внутрь TYPE_CHECKING
+    "PT", # flake8-pytest-style — стиль тестов pytest
+    "RUF", # ruff-native — дополнительные правила ruff
+    "C90", # flake8-c90 — запрет длинных конструкций try/except/finally
+    "FAST", # fastapi — специфичные lint-правила для FastAPI
+    "SIM", # flake8-simplify — рекомендации по упрощению кода
+    "A", # flake8-builtins — защита от переопределений встроенных имён
+    "C4", # flake8-comprehensions — улучшения list/set/dict comprehensions
+    "TID", # flake8-tidy-imports — запрет относительных импортов и мусора
+    "N", # pep8-naming — правила именования переменных/классов/функций
+    "PL", # pylint — частичный набор проверок pylint в ruff
+]
+
+
+ignore = [
+    "RUF002",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"conftest.py" = ["F401"]
+"pytest/*" = ["S", "D"]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "double"
+docstring-quotes = "double"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+known-first-party = ["src", "documentovod.extractor"]
+lines-between-types = 1
+order-by-type = true
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
