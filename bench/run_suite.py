@@ -44,6 +44,8 @@ def main():
     ap.add_argument("--eps", type=float, default=0.0)
     ap.add_argument("--max_rules", type=int, default=20)
     ap.add_argument("--out", default="bench_out")
+    ap.add_argument("--compact", action="store_true", help="Use compact <=K rules selection instead of prune")
+
     args = ap.parse_args()
 
     seeds = [int(s.strip()) for s in args.seeds.split(",")]
@@ -122,6 +124,32 @@ def main():
             random_state=seed,
             simplify_top_k=args.max_rules,
         )
+
+        if args.compact:
+            info = rf.fit_compact_distilled_hgb(
+                X_tr,
+                y_tr,
+                X_val,
+                y_val,
+                K=args.max_rules,
+                eps=args.eps,
+                M=300,
+                ndigits=3,
+                min_sup=0.01,
+                max_sup=0.80,
+                beam=5,
+                distill_alpha=2.0,
+            )
+        else:
+            info = rf.fit_distilled_hgb(
+                X_tr,
+                y_tr,
+                X_val,
+                y_val,
+                eps=args.eps,
+                max_rules_after=args.max_rules,
+                distill_alpha=2.0,
+            )
 
         info = rf.fit_distilled_hgb(
             X_tr,

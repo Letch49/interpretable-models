@@ -273,6 +273,321 @@ class SimpleRuleFitClassifier(BaseEstimator, ClassifierMixin):
             "student_rules_after": int(prune_info["rules_after"]),
         }
 
+    # ---------- compact: normalize + select <=K rules under teacher-F1 constraint ----------
+
+    def fit_compact_distilled_hgb(
+        self,
+        X_train,
+        y_train,
+        X_val,
+        y_val,
+        *,
+        K: int = 20,
+        eps: float = 0.0,
+        M: int = 300,
+        ndigits: int = 3,
+        min_sup: float = 0.01,
+        max_sup: float = 0.80,
+        beam: int = 5,
+        distill_alpha: float = 2.0,
+        teacher_params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Teacher: HGB.
+        Student: RuleFit-lite, but we select <=K rules via beam forward selection
+        to satisfy F1(student,val) >= F1(teacher,val)-eps (best effort if impossible).
+
+        Returns info dict for logging.
+        """
+        X_train = check_array(X_train, accept_sparse=False, dtype=np.float64)
+        X_val = check_array(X_val, accept_sparse=False, dtype=np.float64)
+
+        # 1) teacher
+        teacher_params = teacher_params or {}
+        teacher = HistGradientBoostingClassifier(random_state=self.random_state, **teacher_params)
+        teacher.fit(X_train, y_train)
+
+        pt_val = teacher.predict_proba(X_val)[:, 1]
+        t_thr, t_f1 = self._best_threshold_f1(y_val, pt_val)
+        target = float(t_f1) - float(eps)
+
+        # 2) distillation: pseudo labels + weights on train
+        pt_tr = teacher.predict_proba(X_train)[:, 1]
+        y_soft = (pt_tr >= 0.5).astype(int)
+        conf = np.abs(pt_tr - 0.5) * 2.0
+        sample_weight = 1.0 + distill_alpha * conf
+
+        # 3) generate many rules using our GB rule generator (same as fit)
+        gb = GradientBoostingClassifier(
+            n_estimators=self.n_estimators,
+            learning_rate=self.learning_rate,
+            max_depth=self.max_depth,
+            subsample=self.subsample,
+            random_state=self.random_state,
+        )
+        gb.fit(X_train, y_soft, sample_weight=sample_weight)
+
+        rules = self._extract_rules_from_gb(gb, max_rules=self.max_rules, max_depth=self.max_rule_depth)
+
+        # 4) normalize rules (collapse same-feature constraints, round, dedupe) + support filter
+        rules = [self._normalize_rule(r, ndigits=ndigits) for r in rules]
+        rules = self._dedupe_rules(rules)
+        rules = self._filter_rules_by_support(rules, X_train, min_sup=min_sup, max_sup=max_sup)
+
+        # If nothing survived
+        if len(rules) == 0:
+            # fall back: train on only X
+            self._fit_lr_only_X(X_train, y_soft, sample_weight)
+            self.tune_threshold(X_val, y_val)
+            return {
+                "teacher_f1_val": float(t_f1),
+                "teacher_thr_val": float(t_thr),
+                "target_f1": float(target),
+                "rules_pool": 0,
+                "rules_selected": 0,
+                "student_f1_val": float(
+                    f1_score(y_val, (self.predict_proba(X_val)[:, 1] >= self.threshold_).astype(int))
+                ),
+            }
+
+        # 5) pre-screen top M rules by association with teacher probs (fast)
+        # score(r) = mean(pt_tr|r=1) - mean(pt_tr|r=0)
+        R_full_tr = self._build_rule_matrix(X_train, rules)
+        if sp is not None and sp.issparse(R_full_tr):
+            R_tr = R_full_tr.toarray().astype(np.int8)
+        else:
+            R_tr = np.asarray(R_full_tr).astype(np.int8)
+
+        p = pt_tr
+        scores = np.zeros(R_tr.shape[1], dtype=float)
+        for j in range(R_tr.shape[1]):
+            m1 = R_tr[:, j].astype(bool)
+            if m1.sum() == 0 or m1.sum() == len(m1):
+                scores[j] = -np.inf
+            else:
+                scores[j] = float(p[m1].mean() - p[~m1].mean())
+
+        top_idx = np.argsort(scores)[::-1]
+        top_idx = top_idx[np.isfinite(scores[top_idx])]
+        top_idx = top_idx[: min(M, len(top_idx))]
+
+        rules_pool = [rules[i] for i in top_idx.tolist()]
+
+        # 6) beam forward selection to choose <=K rules maximizing val F1
+        # Precompute matrices for speed (train/val, for pool rules)
+        Xs_tr = self._scaler_fit_transform(X_train)
+        Xs_val = self._scaler_transform(X_val)
+        R_pool_tr = self._build_rule_matrix(X_train, rules_pool)
+        R_pool_val = self._build_rule_matrix(X_val, rules_pool)
+
+        # helper: fit lr on selected rule columns
+        def fit_score(selected_cols: np.ndarray):
+            Rtr = self._slice_cols(R_pool_tr, selected_cols)
+            Rva = self._slice_cols(R_pool_val, selected_cols)
+            Ztr = self._hstack(Xs_tr, Rtr)
+            Zva = self._hstack(Xs_val, Rva)
+
+            lr = LogisticRegression(
+                penalty="l1",
+                solver="saga",
+                C=self.C,
+                max_iter=self.max_iter,
+                random_state=self.random_state,
+            )
+            lr.fit(Ztr, y_soft, sample_weight=sample_weight)
+
+            pv = lr.predict_proba(Zva)[:, 1]
+            thr, best = self._best_threshold_f1(y_val, pv)
+            return float(best), float(thr), lr
+
+        # beam is list of tuples: (best_f1, thr, lr, selected_cols)
+        beam_states = [(0.0, 0.5, None, np.array([], dtype=int))]
+
+        best_overall = (-1.0, 0.5, None, np.array([], dtype=int))
+
+        n_pool = len(rules_pool)
+        # candidate ordering: by pre-score
+        cand_order = np.arange(n_pool, dtype=int)
+
+        for step in range(1, K + 1):
+            new_states = []
+
+            for f_prev, thr_prev, lr_prev, sel_prev in beam_states:
+                used = set(sel_prev.tolist())
+                # evaluate a limited number of candidates per state to keep runtime sane
+                # heuristic: try top 80 not used
+                tried = 0
+                for c in cand_order:
+                    if c in used:
+                        continue
+                    sel_new = np.sort(np.append(sel_prev, c).astype(int))
+                    f1_new, thr_new, lr_new = fit_score(sel_new)
+                    new_states.append((f1_new, thr_new, lr_new, sel_new))
+                    tried += 1
+                    if tried >= 80:
+                        break
+
+            # keep top beam states
+            new_states.sort(key=lambda t: t[0], reverse=True)
+            beam_states = new_states[: max(1, int(beam))]
+
+            if beam_states and beam_states[0][0] > best_overall[0]:
+                best_overall = beam_states[0]
+
+            # early stop if we already meet target and additional rules don't help much
+            if best_overall[0] >= target and step >= min(10, K):
+                # if improvement is tiny, stop
+                if len(beam_states) > 1 and (beam_states[0][0] - beam_states[-1][0]) < 1e-4:
+                    break
+
+        best_f1, best_thr, best_lr, best_sel = best_overall
+
+        # 7) commit compact student model
+        self._commit_compact_model(
+            X_train,
+            y_soft,
+            sample_weight,
+            X_val,
+            y_val,
+            rules_pool,
+            best_sel,
+            Xs_tr,
+            Xs_val,
+            R_pool_tr,
+            R_pool_val,
+            best_lr,
+            best_thr,
+        )
+
+        student_f1 = float(
+            f1_score(y_val, (self.predict_proba(X_val)[:, 1] >= self.threshold_).astype(int), zero_division=0)
+        )
+
+        return {
+            "teacher_f1_val": float(t_f1),
+            "teacher_thr_val": float(t_thr),
+            "target_f1": float(target),
+            "rules_pool": len(rules_pool),
+            "rules_selected": len(self.rules_),
+            "student_best_f1_val": float(best_f1),
+            "student_f1_val": float(student_f1),
+        }
+
+    def _normalize_rule(self, r: _Rule, ndigits: int = 3) -> _Rule:
+        # collapse multiple constraints per feature:
+        # for "<=" keep min thr, for ">" keep max thr
+        le = {}
+        gt = {}
+        for c in r.conditions:
+            thr = float(c.thr)
+            if c.op == "<=":
+                le[c.feat_idx] = thr if c.feat_idx not in le else min(le[c.feat_idx], thr)
+            else:
+                gt[c.feat_idx] = thr if c.feat_idx not in gt else max(gt[c.feat_idx], thr)
+
+        conds = []
+        for fi, thr in le.items():
+            conds.append(_Condition(int(fi), "<=", float(np.round(thr, ndigits))))
+        for fi, thr in gt.items():
+            conds.append(_Condition(int(fi), ">", float(np.round(thr, ndigits))))
+
+        # stable order
+        conds.sort(key=lambda c: (c.feat_idx, c.op, c.thr))
+        return _Rule(tuple(conds))
+
+    def _dedupe_rules(self, rules: list[_Rule]) -> list[_Rule]:
+        def key(r: _Rule):
+            return tuple((c.feat_idx, c.op, c.thr) for c in r.conditions)
+
+        seen = set()
+        out = []
+        for r in rules:
+            k = key(r)
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(r)
+        return out
+
+    def _filter_rules_by_support(
+        self, rules: list[_Rule], X: np.ndarray, min_sup: float, max_sup: float
+    ) -> list[_Rule]:
+        n = X.shape[0]
+        out = []
+        for r in rules:
+            s = float(r.evaluate_mask(X).sum()) / max(1, n)
+            if s < min_sup or s > max_sup:
+                continue
+            out.append(r)
+        return out
+
+    def _scaler_fit_transform(self, X: np.ndarray) -> np.ndarray:
+        self._scaler_ = StandardScaler(with_mean=True, with_std=True)
+        return self._scaler_.fit_transform(X)
+
+    def _scaler_transform(self, X: np.ndarray) -> np.ndarray:
+        return self._scaler_.transform(X)
+
+    def _fit_lr_only_X(self, X: np.ndarray, y: np.ndarray, sample_weight):
+        self.n_features_in_ = X.shape[1]
+        self.feature_names_in_ = np.array([f"x{i}" for i in range(self.n_features_in_)], dtype=object)
+        Xs = self._scaler_fit_transform(X)
+        self.rules_ = []
+        self.rule_strings_ = []
+        Z = Xs
+        self._lr_ = LogisticRegression(
+            penalty="l1", solver="saga", C=self.C, max_iter=self.max_iter, random_state=self.random_state
+        )
+        self._lr_.fit(Z, y, sample_weight=sample_weight)
+        self.coef_original_ = self._lr_.coef_[:, : self.n_features_in_]
+        self.coef_rules_ = self._lr_.coef_[:, self.n_features_in_ :]
+        self.intercept_ = self._lr_.intercept_.copy()
+        self.rule_supports_ = np.array([], dtype=float)
+        self.classes_ = np.array([0, 1])
+
+    def _commit_compact_model(
+        self,
+        X_train,
+        y_soft,
+        sample_weight,
+        X_val,
+        y_val,
+        rules_pool: list[_Rule],
+        selected_cols: np.ndarray,
+        Xs_tr,
+        Xs_val,
+        R_pool_tr,
+        R_pool_val,
+        best_lr: LogisticRegression,
+        best_thr: float,
+    ):
+        # finalize rule list
+        selected_cols = np.array(selected_cols, dtype=int)
+        self.rules_ = [rules_pool[i] for i in selected_cols.tolist()]
+        self.rule_strings_ = [r.to_string(self.feature_names_in_) for r in self.rules_]
+        self.rule_supports_ = self._compute_rule_supports(X_train, self.rules_)
+
+        # refit LR once on selected rules (using cached Xs and cached rule matrices)
+        Rtr = self._slice_cols(R_pool_tr, selected_cols)
+        Rva = self._slice_cols(R_pool_val, selected_cols)
+        Ztr = self._hstack(Xs_tr, Rtr)
+        Zva = self._hstack(Xs_val, Rva)
+
+        self._lr_ = LogisticRegression(
+            penalty="l1", solver="saga", C=self.C, max_iter=self.max_iter, random_state=self.random_state
+        )
+        self._lr_.fit(Ztr, y_soft, sample_weight=sample_weight)
+
+        coef = self._lr_.coef_
+        self.coef_original_ = coef[:, : self.n_features_in_]
+        self.coef_rules_ = coef[:, self.n_features_in_ :]
+        self.intercept_ = self._lr_.intercept_.copy()
+
+        # tune threshold on val wrt true y
+        pv = self._lr_.predict_proba(Zva)[:, 1]
+        thr, _ = self._best_threshold_f1(y_val, pv)
+        self.threshold_ = float(thr)
+
     def prune_to_target_f1(
         self,
         X_train,

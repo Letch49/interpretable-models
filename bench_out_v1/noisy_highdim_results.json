@@ -1,0 +1,128 @@
+[
+  {
+    "case": "noisy_highdim",
+    "seed": 0,
+    "model": "HGB_teacher",
+    "f1": 0.9418509418509419,
+    "precision": 0.9655751469353484,
+    "recall": 0.9192645883293366,
+    "rules": null
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 0,
+    "model": "A_LogReg",
+    "f1": 0.8626543209876543,
+    "precision": 0.8337061894108874,
+    "recall": 0.8936850519584333,
+    "rules": null
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 0,
+    "model": "B_Tree",
+    "f1": 0.8745310546060858,
+    "precision": 0.9137630662020906,
+    "recall": 0.8385291766586731,
+    "rules": "tree"
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 0,
+    "model": "C_RuleFit_distilled_pruned",
+    "f1": 0.9272653392929704,
+    "precision": 0.9429752066115702,
+    "recall": 0.9120703437250199,
+    "rules": 375,
+    "info_teacher_f1_val": 0.9441128594682583,
+    "info_teacher_thr_val": 0.7000000000000001,
+    "info_student_f1_val_before_prune": 0.9326145552560647,
+    "info_student_f1_val_after_prune": 0.9328318108543794,
+    "info_student_rules_before": 375,
+    "info_student_rules_after": 375
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 1,
+    "model": "HGB_teacher",
+    "f1": 0.8908877590926867,
+    "precision": 0.8748079877112135,
+    "recall": 0.9075697211155378,
+    "rules": null
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 1,
+    "model": "A_LogReg",
+    "f1": 0.8157991878922112,
+    "precision": 0.7599724896836314,
+    "recall": 0.8804780876494024,
+    "rules": null
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 1,
+    "model": "B_Tree",
+    "f1": 0.8104575163398693,
+    "precision": 0.7444963308872582,
+    "recall": 0.8892430278884462,
+    "rules": "tree"
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 1,
+    "model": "C_RuleFit_distilled_pruned",
+    "f1": 0.873015873015873,
+    "precision": 0.8695652173913043,
+    "recall": 0.8764940239043825,
+    "rules": 440,
+    "info_teacher_f1_val": 0.892243623112962,
+    "info_teacher_thr_val": 0.45,
+    "info_student_f1_val_before_prune": 0.8769716088328076,
+    "info_student_f1_val_after_prune": 0.8765107724645297,
+    "info_student_rules_before": 440,
+    "info_student_rules_after": 440
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 2,
+    "model": "HGB_teacher",
+    "f1": 0.9365971107544141,
+    "precision": 0.9381028938906752,
+    "recall": 0.9350961538461539,
+    "rules": null
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 2,
+    "model": "A_LogReg",
+    "f1": 0.8599471498678747,
+    "precision": 0.8129907209136331,
+    "recall": 0.9126602564102564,
+    "rules": null
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 2,
+    "model": "B_Tree",
+    "f1": 0.8436213991769548,
+    "precision": 0.8671742808798646,
+    "recall": 0.8213141025641025,
+    "rules": "tree"
+  },
+  {
+    "case": "noisy_highdim",
+    "seed": 2,
+    "model": "C_RuleFit_distilled_pruned",
+    "f1": 0.9172633253778838,
+    "precision": 0.9107424960505529,
+    "recall": 0.9238782051282052,
+    "rules": 408,
+    "info_teacher_f1_val": 0.9397333333333333,
+    "info_teacher_thr_val": 0.52,
+    "info_student_f1_val_before_prune": 0.919175911251981,
+    "info_student_f1_val_after_prune": 0.9186906019007391,
+    "info_student_rules_before": 408,
+    "info_student_rules_after": 408
+  }
+]

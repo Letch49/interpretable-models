@@ -1,0 +1,128 @@
+[
+  {
+    "case": "imbalanced",
+    "seed": 0,
+    "model": "HGB_teacher",
+    "f1": 0.840064620355412,
+    "precision": 0.9090909090909091,
+    "recall": 0.7807807807807807,
+    "rules": null
+  },
+  {
+    "case": "imbalanced",
+    "seed": 0,
+    "model": "A_LogReg",
+    "f1": 0.7804107424960506,
+    "precision": 0.8233333333333334,
+    "recall": 0.7417417417417418,
+    "rules": null
+  },
+  {
+    "case": "imbalanced",
+    "seed": 0,
+    "model": "B_Tree",
+    "f1": 0.6761565836298933,
+    "precision": 0.8296943231441049,
+    "recall": 0.5705705705705706,
+    "rules": "tree"
+  },
+  {
+    "case": "imbalanced",
+    "seed": 0,
+    "model": "C_RuleFit_distilled_pruned",
+    "f1": 0.805111821086262,
+    "precision": 0.8600682593856656,
+    "recall": 0.7567567567567568,
+    "rules": 288,
+    "info_teacher_f1_val": 0.8808510638297873,
+    "info_teacher_thr_val": 0.33,
+    "info_student_f1_val_before_prune": 0.8290598290598291,
+    "info_student_f1_val_after_prune": 0.8290598290598291,
+    "info_student_rules_before": 288,
+    "info_student_rules_after": 288
+  },
+  {
+    "case": "imbalanced",
+    "seed": 1,
+    "model": "HGB_teacher",
+    "f1": 0.7802385008517888,
+    "precision": 0.89453125,
+    "recall": 0.6918429003021148,
+    "rules": null
+  },
+  {
+    "case": "imbalanced",
+    "seed": 1,
+    "model": "A_LogReg",
+    "f1": 0.5356125356125356,
+    "precision": 0.5067385444743935,
+    "recall": 0.56797583081571,
+    "rules": null
+  },
+  {
+    "case": "imbalanced",
+    "seed": 1,
+    "model": "B_Tree",
+    "f1": 0.6217765042979942,
+    "precision": 0.5912806539509536,
+    "recall": 0.6555891238670695,
+    "rules": "tree"
+  },
+  {
+    "case": "imbalanced",
+    "seed": 1,
+    "model": "C_RuleFit_distilled_pruned",
+    "f1": 0.7260726072607261,
+    "precision": 0.8,
+    "recall": 0.6646525679758308,
+    "rules": 324,
+    "info_teacher_f1_val": 0.7831858407079646,
+    "info_teacher_thr_val": 0.38,
+    "info_student_f1_val_before_prune": 0.7473460721868365,
+    "info_student_f1_val_after_prune": 0.7473460721868365,
+    "info_student_rules_before": 324,
+    "info_student_rules_after": 324
+  },
+  {
+    "case": "imbalanced",
+    "seed": 2,
+    "model": "HGB_teacher",
+    "f1": 0.8327868852459016,
+    "precision": 0.9039145907473309,
+    "recall": 0.7720364741641338,
+    "rules": null
+  },
+  {
+    "case": "imbalanced",
+    "seed": 2,
+    "model": "A_LogReg",
+    "f1": 0.7211367673179396,
+    "precision": 0.8675213675213675,
+    "recall": 0.6170212765957447,
+    "rules": null
+  },
+  {
+    "case": "imbalanced",
+    "seed": 2,
+    "model": "B_Tree",
+    "f1": 0.5818181818181818,
+    "precision": 0.8674698795180723,
+    "recall": 0.4376899696048632,
+    "rules": "tree"
+  },
+  {
+    "case": "imbalanced",
+    "seed": 2,
+    "model": "C_RuleFit_distilled_pruned",
+    "f1": 0.7756521739130435,
+    "precision": 0.9065040650406504,
+    "recall": 0.6778115501519757,
+    "rules": 287,
+    "info_teacher_f1_val": 0.8553459119496856,
+    "info_teacher_thr_val": 0.26,
+    "info_student_f1_val_before_prune": 0.8337028824833703,
+    "info_student_f1_val_after_prune": 0.8333333333333334,
+    "info_student_rules_before": 287,
+    "info_student_rules_after": 287
+  }
+]
